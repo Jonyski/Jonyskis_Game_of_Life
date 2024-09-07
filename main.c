@@ -165,9 +165,11 @@ void process_keypress(int key_pressed) {
 		// keys that change the simulation speed
 		case KEY_MINUS:
 			universe_tempo += 0.02;
+			key_press_timer = 0.0f;
 			break;
 		case KEY_EQUAL:
 			if(universe_tempo - 0.02 >= 0.02) universe_tempo -= 0.02;
+			key_press_timer = 0.0f;
 			break;
 		// keys that change the color scheme
 		case KEY_ZERO:
