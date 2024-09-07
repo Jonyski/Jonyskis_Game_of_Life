@@ -4,7 +4,7 @@
 *
 *   Sample game developed by Jonyski
 *
-*   This game has been created using raylib v1.3 (www.raylib.com)
+*   This game has been created using raylib v5.0 (www.raylib.com)
 *   raylib is licensed under an unmodified zlib/libpng license (View raylib.h for details)
 *
 ********************************************************************************************/
