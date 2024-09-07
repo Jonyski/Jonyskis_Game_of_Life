@@ -1,13 +1,11 @@
 /*******************************************************************************************
 *
-*   raylib - classic game: space invaders
+*   raylib - game: Conway's Game of Life
 *
-*   Sample game developed by Ian Eito, Albert Martos and Ramon Santamaria
+*   Sample game developed by Jonyski
 *
 *   This game has been created using raylib v1.3 (www.raylib.com)
 *   raylib is licensed under an unmodified zlib/libpng license (View raylib.h for details)
-*
-*   Copyright (c) 2015 Ramon Santamaria (@raysan5)
 *
 ********************************************************************************************/
 
