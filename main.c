@@ -1,271 +1,219 @@
 /*******************************************************************************************
-*
-*   raylib - game: Conway's Game of Life
-*
-*   Sample game developed by Jonyski
-*
-*   This game has been created using raylib v5.0 (www.raylib.com)
-*   raylib is licensed under an unmodified zlib/libpng license (View raylib.h for details)
-*
-********************************************************************************************/
+ *
+ *   raylib - game: Conway's Game of Life
+ *
+ *   Sample game developed by Jonyski
+ *
+ *   This game has been created using raylib v5.0 (www.raylib.com)
+ *   raylib is licensed under an unmodified zlib/libpng license (View raylib.h
+ *for details)
+ *
+ ********************************************************************************************/
 
 #include "raylib.h"
-#include <stdio.h>
-#include <stdbool.h>
 #include <math.h>
+#include <stdbool.h>
 
-typedef enum {
-	LIGHT,
-	DARK
-} FontTheme;
+typedef enum { LIGHT, DARK } TemaFonte;
 
 //------------------------------------------------------------------------------------
-// Global variables
+// Variáveis globais
 //------------------------------------------------------------------------------------
-// the universe is actually 50x30 but there is some extra space outside the viewport
-#define extra_space 10
-#define universe_width 50 + extra_space * 2
-#define universe_height 30 + extra_space * 2
-const int screen_width = 1000;
-const int screen_height = 600;
-const int cell_size = 20;
-bool universe[universe_height][universe_width]; // a canvas containing our cells
-bool is_simulating = false; // if the simulation of the game of life is running or not
-float universe_tempo = 0.2f; // the update time of the universe
-float universe_timer = 0.0f;
-float key_press_timer = 0.0f;
-float key_press_cooldown = 0.12f;
-Color inactive_cell_color = { 255, 255, 255, 255 };
-Color active_cell_color = { 0, 0, 0, 255 };
-Color strong_text_color = { 0, 0, 0, 50 };
-Color weak_text_color = { 0, 0, 0, 32 };
-Vector2 click_position = { -1.0f, -1.0f };
-
+#define ESPACO_EXTRA 10
+#define LARGURA_UNIVERSO 50 + ESPACO_EXTRA * 2
+#define ALTURA_UNIVERSO 30 + ESPACO_EXTRA * 2
+const int largura_janela = 1000;
+const int altura_janela = 600;
+const int tamanho_celula = 20;
+bool universo[ALTURA_UNIVERSO][LARGURA_UNIVERSO] = {
+    0};               // a canvas containing our cells
+bool rodando = false; // if the simulation of the game of life is running or not
+float periodo_universo = 0.2f; // the update time of the universo
+float timer_universo = 0.0f;
+float timer_teclagem = 0.0f;
+float cooldown_periodo = 0.12f;
+Color cor_celula_morta = {255, 255, 255, 255};
+Color cor_celula_viva = {0, 0, 0, 255};
+Color cor_texto_forte = {0, 0, 0, 50};
+Color cor_texto_fraco = {0, 0, 0, 32};
+TemaFonte temas_fonte[10] = {DARK,  DARK,  DARK, DARK, LIGHT,
+                             LIGHT, LIGHT, DARK, DARK, DARK};
+Color paletas[10][2] = {
+    {(Color){255, 255, 255, 255}, (Color){0, 0, 0, 255}},        // vida
+    {(Color){231, 6, 55, 255}, (Color){255, 230, 174, 255}},     // solar
+    {(Color){149, 245, 249, 255}, (Color){219, 65, 106, 255}},   // sonho
+    {(Color){255, 58, 114, 255}, (Color){2, 31, 83, 255}},       // cereja
+    {(Color){22, 23, 26, 255}, (Color){123, 115, 222, 255}},     // noite
+    {(Color){17, 17, 17, 255}, (Color){121, 255, 139, 255}},     // hacker
+    {(Color){3, 26, 65, 255}, (Color){96, 212, 255, 255}},       // oceano
+    {(Color){180, 130, 214, 255}, (Color){57, 45, 126, 255}},    // mirtilo
+    {(Color){226, 178, 143, 255}, (Color){148, 76, 74, 255}},    // amora
+    {(Color){243, 161, 166, 255}, (Color){255, 212, 212, 255}}}; // pêssego
 
 //------------------------------------------------------------------------------------
-// Non-raylib functions
+// Prototipos de funções
 //------------------------------------------------------------------------------------
-void init_universe(); // initializes the universe to an empty grid
-void update_cell(int x, int y); // switches a cell
-void update_universe(); // simulates 1 step in the game of life
-void render_universe(); // renders the cells
-void process_keypress(int key_pressed);
-Vector2 get_click();
-int get_neighbors(bool universe[universe_height][universe_width], int x, int y);
-void set_font_theme(FontTheme theme);
-
+void inverte_celula(int x, int y); // switches a cell
+void trata_click();
+void atualiza_universo();  // simulates 1 step in the game of life
+void renderiza_universo(); // renders the cells
+void trata_teclagem();
+int conta_vizinhos(bool universo[ALTURA_UNIVERSO][LARGURA_UNIVERSO], int x,
+                   int y);
+void trocaTemaFonte(TemaFonte tema);
 
 //------------------------------------------------------------------------------------
 // Program main entry point
 //------------------------------------------------------------------------------------
 int main(void) {
-    InitWindow(screen_width, screen_height, "Jonyski's Game of Life");
-    init_universe();
-    SetTargetFPS(60);
-    ClearBackground(inactive_cell_color);
+  InitWindow(largura_janela, altura_janela, "Jonyski's Game of Life");
+  SetTargetFPS(60);
+  ClearBackground(cor_celula_morta);
 
-    while (!WindowShouldClose()) {
-    	BeginDrawing();
-    	ClearBackground(inactive_cell_color);
-    	DrawText("press SPACEBAR to run the simulation", 250, 288, 24, strong_text_color);
-    	DrawText("press 0 - 9 to change the color scheme", 262, 322, 22, weak_text_color);
-    	DrawText(TextFormat("universe updating every: %02.02fs", universe_tempo), 324, 10, 20, strong_text_color);
+  while (!WindowShouldClose()) {
+    BeginDrawing();
+    ClearBackground(cor_celula_morta);
+    DrawText("aperte ESPAÇO para rodar", 320, 288, 24, cor_texto_forte);
+    DrawText("aperte 0 - 9 para mudar a paleta de cores", 250, 322, 22,
+             cor_texto_fraco);
+    DrawText(TextFormat("período do universo: %02.02fs", periodo_universo), 340,
+             10, 20, cor_texto_forte);
 
-    	key_press_timer += GetFrameTime();
-    	int key_pressed = GetKeyPressed();
-    	process_keypress(key_pressed);
+    timer_teclagem += GetFrameTime();
+    trata_teclagem();
 
-    	if(is_simulating) {
-    		universe_timer += GetFrameTime();
-    		if(universe_timer >= universe_tempo) {
-    			update_universe();
-	    		universe_timer = 0.0f;
-    		}
-    	}
-
-        click_position = get_click(); // checking for mouse clicks
-        if(click_position.x >= 0) {
-        	// finding the indexes of the cell to switch
-        	int cell_x = (int) floor(click_position.x / (screen_width / (universe_width - 2 * extra_space))) + extra_space;
-        	int cell_y = (int) floor(click_position.y / (screen_height / (universe_height - 2 * extra_space))) + extra_space;
-        	update_cell(cell_x, cell_y);
-        }
-        render_universe();
-
-    	EndDrawing();
+    if (rodando) {
+      timer_universo += GetFrameTime();
+      if (timer_universo >= periodo_universo) {
+        atualiza_universo();
+        timer_universo = 0.0f;
+      }
     }
-    CloseWindow();
 
-    return 0;
+    trata_click();
+    renderiza_universo();
+
+    EndDrawing();
+  }
+  CloseWindow();
+
+  return 0;
 }
 
-
-void init_universe() {
-	for(int i = 0; i < universe_height; i++) {
-		for(int j = 0; j < universe_width; j++) {
-			universe[i][j] = false;
-		}
-	}
+void trata_click() {
+  if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+    Vector2 posicao_click = GetMousePosition();
+    // finding the indexes of the cell to switch
+    int x = floor(posicao_click.x / tamanho_celula) + ESPACO_EXTRA;
+    int y = floor(posicao_click.y / tamanho_celula) + ESPACO_EXTRA;
+    inverte_celula(x, y);
+  }
 }
 
-void update_cell(int x, int y) {
-	universe[y][x] = universe[y][x] ? false : true;
+void inverte_celula(int x, int y) { universo[y][x] = !universo[y][x]; }
+
+void atualiza_universo() {
+  // criando uma cópia do universo, para podermos alterar o original sem afetar
+  // o estado passado
+  bool universo_paralelo[ALTURA_UNIVERSO][LARGURA_UNIVERSO];
+  for (int i = 0; i < ALTURA_UNIVERSO; i++) {
+    for (int j = 0; j < LARGURA_UNIVERSO; j++) {
+      universo_paralelo[i][j] = universo[i][j];
+    }
+  }
+
+  // atualizando o universo real
+  int vizinhos = 0;
+  for (int i = 0; i < ALTURA_UNIVERSO; i++) {
+    for (int j = 0; j < LARGURA_UNIVERSO; j++) {
+      vizinhos = conta_vizinhos(universo_paralelo, j, i);
+      // aplicando as regras do jogo da vida
+      if (universo[i][j] && (vizinhos < 2 || vizinhos > 3))
+        universo[i][j] = false;
+      else if (vizinhos == 3)
+        universo[i][j] = true;
+    }
+  }
 }
 
-void update_universe() {
-	// creating a copy of the universe
-	bool paralel_universe[universe_height][universe_width];
-	for(int i = 0; i < universe_height; i++) {
-		for(int j = 0; j < universe_width; j++) {
-			paralel_universe[i][j] = universe[i][j];
-		}
-	}
-	// updating the cells of the original universe
-	int neighbors = 0;
-	for(int i = 0; i < universe_height; i++) {
-		for(int j = 0; j < universe_width; j++) {
-			// getting the numbers of neighbors of a cell
-			neighbors = get_neighbors(paralel_universe, j, i);
-			// applying the Conway's game of life rules to the cell
-			if(universe[i][j]) {
-				if(neighbors < 2 || neighbors > 3) universe[i][j] = false;
-			} else {
-				if(neighbors == 3) universe[i][j] = true;
-			}
-		}
-	}
-}
-void render_universe() {
-	for(int i = extra_space; i < universe_height - extra_space; i++) {
-		for(int j = extra_space; j < universe_width - extra_space; j++) {
-			if(universe[i][j]) {
-				int x = j - extra_space;
-				int y = i - extra_space;
-				DrawRectangle(x*cell_size, y*cell_size, cell_size, cell_size, active_cell_color);
-			}
-		}
-	}
+void renderiza_universo() {
+  for (int i = ESPACO_EXTRA; i < ALTURA_UNIVERSO - ESPACO_EXTRA; i++) {
+    for (int j = ESPACO_EXTRA; j < LARGURA_UNIVERSO - ESPACO_EXTRA; j++) {
+      if (universo[i][j]) {
+        int x = j - ESPACO_EXTRA;
+        int y = i - ESPACO_EXTRA;
+        DrawRectangle(x * tamanho_celula, y * tamanho_celula, tamanho_celula,
+                      tamanho_celula, cor_celula_viva);
+      }
+    }
+  }
 }
 
-Vector2 get_click() {
-	if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-		click_position = GetMousePosition();
-	else
-		click_position = (Vector2) { -1.0f, -1.0f };
+void trata_teclagem() {
+  int tecla = GetKeyPressed();
+  switch (tecla) {
+  // key that runs/pauses the simulation
+  case KEY_SPACE:
+    rodando = rodando ? false : true;
+    break;
+  // keys that change the simulation speed
+  case KEY_MINUS:
+    periodo_universo += 0.02;
+    timer_teclagem = -0.4f;
+    break;
+  case KEY_EQUAL:
+    if (periodo_universo - 0.02 >= 0.02)
+      periodo_universo -= 0.02;
+    timer_teclagem = -0.4f;
+    break;
+  }
 
-	return click_position;
+  if (tecla >= KEY_ZERO && tecla <= KEY_NINE) {
+    int idx = tecla - KEY_ZERO;
+    cor_celula_morta = paletas[idx][0];
+    cor_celula_viva = paletas[idx][1];
+    trocaTemaFonte(temas_fonte[idx]);
+  }
+
+  if (timer_teclagem >= cooldown_periodo) {
+    if (IsKeyDown(KEY_MINUS))
+      periodo_universo += 0.02;
+    if (IsKeyDown(KEY_EQUAL))
+      if (periodo_universo - 0.02 >= 0.02)
+        periodo_universo -= 0.02;
+    timer_teclagem = 0.0f;
+  }
 }
 
-void process_keypress(int key_pressed) {
-	switch(key_pressed){
-		// key that runs/pauses the simulation
-		case KEY_SPACE:
-			is_simulating = is_simulating ? false : true;
-			break;
-		// keys that change the simulation speed
-		case KEY_MINUS:
-			universe_tempo += 0.02;
-			key_press_timer = 0.0f;
-			break;
-		case KEY_EQUAL:
-			if(universe_tempo - 0.02 >= 0.02) universe_tempo -= 0.02;
-			key_press_timer = 0.0f;
-			break;
-		// keys that change the color scheme
-		case KEY_ZERO:
-			inactive_cell_color = (Color) { 255, 255, 255, 255 };
-			active_cell_color = (Color) { 0, 0, 0, 255 };
-			set_font_theme(DARK);
-			break;
-		case KEY_ONE:
-			inactive_cell_color = (Color) { 42, 47, 51, 255 };
-			active_cell_color = (Color) { 61, 137, 192, 255 };
-			set_font_theme(LIGHT);
-			break;
-		case KEY_TWO:
-			inactive_cell_color = (Color) { 197, 92, 76, 255 };
-			active_cell_color = (Color) { 51, 40, 38, 255 };
-			set_font_theme(DARK);
-			break;
-		case KEY_THREE:
-			inactive_cell_color = (Color) { 103, 21, 27, 255 };
-			active_cell_color = (Color) { 22, 26, 30, 255 };
-			set_font_theme(LIGHT);
-			break;
-		case KEY_FOUR:
-			inactive_cell_color = (Color) { 232, 170, 155, 255 };
-			active_cell_color = (Color) { 227, 211, 196, 255 };
-			set_font_theme(DARK);
-			break;
-		case KEY_FIVE:
-			inactive_cell_color = (Color) { 1, 46, 64, 255 };
-			active_cell_color = (Color) { 242, 227, 213, 255 };
-			set_font_theme(LIGHT);
-			break;
-		case KEY_SIX:
-			inactive_cell_color = (Color) { 217, 17, 71, 255 };
-			active_cell_color = (Color) { 242, 230, 56, 255 };
-			set_font_theme(DARK);
-			break;
-		case KEY_SEVEN:
-			inactive_cell_color = (Color) { 34, 35, 38, 255 };
-			active_cell_color = (Color) { 137, 217, 126, 255 };
-			set_font_theme(LIGHT);
-			break;
-		case KEY_EIGHT:
-			inactive_cell_color = (Color) { 89, 52, 59, 255 };
-			active_cell_color = (Color) { 74, 103, 140, 255 };
-			set_font_theme(DARK);
-			break;
-		case KEY_NINE:
-			inactive_cell_color = (Color) { 60, 61, 89, 255 };
-			active_cell_color = (Color) { 242, 120, 75, 255 };
-			set_font_theme(DARK);
-			break;
-	}
+int conta_vizinhos(bool universo[ALTURA_UNIVERSO][LARGURA_UNIVERSO], int x,
+                   int y) {
+  int numero_vizinhos = 0;
 
-	if(key_press_timer >= key_press_cooldown) {
-		if(IsKeyDown(KEY_MINUS)) universe_tempo += 0.02;
-		if(IsKeyDown(KEY_EQUAL)) if(universe_tempo - 0.02 >= 0.02) universe_tempo -= 0.02;
-		key_press_timer = 0.0f;
-	}
+  for (int i = -1; i <= 1; i++) {
+    for (int j = -1; j <= 1; j++) {
+      if (i == 0 && j == 0)
+        continue;
+
+      int nx = x + j;
+      int ny = y + i;
+
+      // Verifica se o vizinho está dentro dos limites da grade
+      if (nx >= 0 && nx < LARGURA_UNIVERSO && ny >= 0 && ny < ALTURA_UNIVERSO) {
+        numero_vizinhos += universo[ny][nx];
+      }
+    }
+  }
+  return numero_vizinhos;
 }
 
-int get_neighbors(bool universe[universe_height][universe_width], int x, int y) {
-	int neighbors = 0;
-	if(y > 0) {
-		// top left
-		if(x > 0) neighbors += (int) universe[y - 1][x - 1];
-		// top middle
-		neighbors += (int) universe[y - 1][x];
-		// top right
-		if(x + 1 < universe_width) neighbors += (int) universe[y - 1][x + 1];
-	}
-	if(x < universe_width - 1) {
-		// middle right
-		neighbors += (int) universe[y][x + 1];
-		// bottom right
-		if(y + 1 < universe_height) neighbors += (int) universe[y + 1][x + 1];
-	}
-	if(y < universe_height - 1) {
-		// bottom middle
-		neighbors += (int) universe[y + 1][x];
-		// bottom left
-		if(x > 0) neighbors += (int) universe[y + 1][x - 1];
-	}
-	// middle left
-	if(x > 0) neighbors += (int) universe[y][x - 1];
-	return neighbors;
-}
-
-void set_font_theme(FontTheme theme) {
-	switch(theme) {
-		case DARK:
-			strong_text_color = (Color) { 0, 0, 0, 50 };
-			weak_text_color = (Color) { 0, 0, 0, 32 };
-			break;
-		case LIGHT:
-			strong_text_color = (Color) { 255, 255, 255, 50 };
-			weak_text_color = (Color) { 255, 255, 255, 32 };
-	}
+void trocaTemaFonte(TemaFonte tema) {
+  switch (tema) {
+  case DARK:
+    cor_texto_forte = (Color){0, 0, 0, 50};
+    cor_texto_fraco = (Color){0, 0, 0, 32};
+    break;
+  case LIGHT:
+    cor_texto_forte = (Color){255, 255, 255, 50};
+    cor_texto_fraco = (Color){255, 255, 255, 32};
+  }
 }
